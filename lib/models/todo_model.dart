@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'package:uuid/uuid.dart';
+
+const uuid = Uuid();
+
 class TodoModel {
   final String id;
   final String title;
@@ -7,10 +11,11 @@ class TodoModel {
   final bool completed;
 
   TodoModel({
+    String? id,
     required this.title,
     required this.date,
     this.completed = false,
-  }) : id = uniqueId();
+  }) : id = id ?? uuid.v4();
 
   Map<String, dynamic> toMap() {
     final result = <String, dynamic>{};
@@ -23,10 +28,9 @@ class TodoModel {
     return result;
   }
 
-  static String uniqueId() => DateTime.now().millisecondsSinceEpoch.toString();
-
   factory TodoModel.fromMap(Map<String, dynamic> map) {
     return TodoModel(
+      id: map['id'],
       title: map['title'] ?? '',
       date: DateTime.fromMillisecondsSinceEpoch(map['date']),
       completed: map['completed'] ?? false,
@@ -45,6 +49,7 @@ class TodoModel {
     bool? completed,
   }) {
     return TodoModel(
+      id: id ?? this.id,
       title: title ?? this.title,
       date: date ?? this.date,
       completed: completed ?? this.completed,

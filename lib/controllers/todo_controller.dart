@@ -1,33 +1,35 @@
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:riverpod_test/models/todo_model.dart';
-import 'package:riverpod_test/shared.dart';
+import 'package:riverpod_test/todo_api.dart';
 
-final todoList = FutureProvider((ref) => Shared.fetch());
+final todoController = StateNotifierProvider<TodoController, List<TodoModel>>(
+    (ref) => TodoController());
 
-final todoController =
-    StateNotifierProvider<TodoController, AsyncValue<List<TodoModel>>>((ref) {
-  final todos = ref.watch(todoList);
-  return TodoController(todos);
-});
+class TodoController extends StateNotifier<List<TodoModel>> {
+  TodoController([List<TodoModel>? state]) : super(state ?? []);
 
-class TodoController extends StateNotifier<AsyncValue<List<TodoModel>>> {
-  TodoController(AsyncValue<List<TodoModel>> state) : super(state);
-
-  void add(TodoModel todo) async {
-    await Shared.add(todo);
-    state = AsyncData(state.value!.toList()..add(todo));
+  Future<void> fetchAll() async {
+    state = await TodoAPI.fetchAll();
   }
 
-  void remove(String id) async {
-    await Shared.delete(id);
-    state = AsyncData(
-        state.value!.toList()..removeWhere((element) => element.id == id));
+  Future<void> add(String txt) async {
+    final todo = TodoModel(
+      title: txt,
+      date: DateTime.now(),
+    );
+    await TodoAPI.put(todo);
+    state = state.toList()..add(todo);
   }
 
-  void toggle(int index) async {
-    final todo = state.value!.elementAt(index);
+  Future<void> remove(String id) async {
+    await TodoAPI.delete(id);
+    state = state.toList()..removeWhere((element) => element.id == id);
+  }
+
+  void toggle(String id) async {
+    final todo = state.firstWhere((element) => element.id == id);
     final newTodo = todo.copyWith(completed: !todo.completed);
-    await Shared.toggle(state.value![index]);
-    state = AsyncData(state.value!.toList()..[index] = newTodo);
+    await TodoAPI.put(newTodo);
+    state = state.map((e) => e.id == id ? newTodo : e).toList();
   }
 }

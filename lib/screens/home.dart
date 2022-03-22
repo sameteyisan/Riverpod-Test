@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:riverpod_test/controllers/current_todo.dart';
 import 'package:riverpod_test/controllers/todo_controller.dart';
-import 'package:riverpod_test/models/todo_model.dart';
+import 'package:riverpod_test/widgets/current_todo.dart';
 
 class HomePage extends HookConsumerWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -10,125 +11,105 @@ class HomePage extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textEditingController = useTextEditingController();
-    final controller = ref.watch(todoController.notifier);
+    final focus = useFocusNode();
     final isEmpty = useState(true);
 
     useEffect(() {
+      ref.read(todoController.notifier).fetchAll();
+
       textEditingController.addListener(() {
         isEmpty.value = textEditingController.text.trim().isEmpty;
       });
       return null;
     }, const []);
 
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text(
-          'TODO APP EXAMPLE',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            TextField(
-              controller: textEditingController,
-              decoration: InputDecoration(
-                hintText: "What needs to be done?",
-                labelText: "ToDo",
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => textEditingController.clear(),
+    return GestureDetector(
+      onTap: () {
+        focus.unfocus();
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                const SizedBox(height: 32),
+                const Text(
+                  "Riverpod TODO",
+                  style: TextStyle(fontSize: 24),
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15.0),
-                ),
-              ),
-              onPressed: !isEmpty.value
-                  ? () {
-                      final todo = TodoModel(
-                        title: textEditingController.text,
-                        date: DateTime.now(),
-                      );
-                      controller.add(todo);
-                      textEditingController.clear();
-                    }
-                  : null,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.add, color: Colors.white),
-                  Text(
-                    "Add",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(child: Consumer(builder: (ctx, ref, _) {
-              final todos = ref.watch(todoController);
-
-              return todos.when(
-                  data: (list) {
-                    return list.isNotEmpty
-                        ? ListView.builder(
-                            physics: const BouncingScrollPhysics(
-                                parent: AlwaysScrollableScrollPhysics()),
-                            itemCount: list.length,
-                            itemBuilder: ((context, index) {
-                              final item = list[index];
-                              return Card(
-                                color: Colors.cyanAccent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(15.0),
-                                ),
-                                child: ListTile(
-                                  leading: Checkbox(
-                                    activeColor: Colors.green,
-                                    value: item.completed,
-                                    onChanged: (value) =>
-                                        controller.toggle(index),
-                                  ),
-                                  minVerticalPadding: 15,
-                                  horizontalTitleGap: 0,
-                                  contentPadding: EdgeInsets.zero,
-                                  title: Text(
-                                    item.title,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle:
-                                      Text(item.date.toString().split(".")[0]),
-                                  trailing: IconButton(
-                                      splashRadius: 25,
-                                      onPressed: () =>
-                                          controller.remove(item.id),
-                                      icon: const Icon(Icons.delete)),
-                                ),
-                              );
-                            }),
-                          )
-                        : const Center(
-                            child: Text(
-                              "No items...",
-                              style:
-                                  TextStyle(fontSize: 21, color: Colors.grey),
-                            ),
-                          );
+                const SizedBox(height: 32),
+                TextField(
+                  focusNode: focus,
+                  controller: textEditingController,
+                  onSubmitted: (_) {
+                    ref
+                        .read(todoController.notifier)
+                        .add(textEditingController.text);
+                    textEditingController.clear();
                   },
-                  error: (_, __) => const Center(child: Text("ERR")),
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()));
-            }))
-          ],
+                  decoration: InputDecoration(
+                    hintText: "What needs to be done?",
+                    labelText: "Todo",
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () => textEditingController.clear(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15.0),
+                    ),
+                  ),
+                  onPressed: !isEmpty.value
+                      ? () {
+                          ref
+                              .read(todoController.notifier)
+                              .add(textEditingController.text);
+                          textEditingController.clear();
+                        }
+                      : null,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.add, color: Colors.white),
+                      Text(
+                        "Add",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(child: Consumer(builder: (ctx, ref, _) {
+                  final todos = ref.watch(todoController);
+
+                  if (todos.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        "Empty !",
+                        style: TextStyle(fontSize: 21, color: Colors.grey),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    itemCount: todos.length,
+                    itemBuilder: ((context, index) {
+                      return ProviderScope(
+                        overrides: [
+                          currentTodo.overrideWithValue(todos[index])
+                        ],
+                        child: const CurrentTodo(),
+                      );
+                    }),
+                  );
+                }))
+              ],
+            ),
+          ),
         ),
       ),
     );
